@@ -29,57 +29,19 @@ destroy() {
     return 0
   fi
   echo "Destroying resources to minimize cost..."
-  terraform -chdir="${INFRA_DIR}" destroy -auto-approve -var-file="${TFVARS_FILE}" >/dev/null || true
-}
+chmod +x scripts/demo.shchable after retries."henps || true; sudo ss -lntp | grep ":80 " || true; sudo tail -n 80 /var/log/cloud-init-ou
+mahran@Eng-Mahran:~/Projects/azure-iac-app-platform$ cat > Makefile <<'EOF'
+SHELL := /bin/bash
 
-trap destroy EXIT
+.PHONY: demo validate fmt
 
-echo "Terraform init..."
-terraform -chdir="${INFRA_DIR}" init -upgrade >/dev/null
+demo:
+        ./scripts/demo.sh
 
-echo "Terraform apply (temporary demo)..."
-terraform -chdir="${INFRA_DIR}" apply -auto-approve -var-file="${TFVARS_FILE}"
+validate:
+        terraform fmt -check -recursive
+        terraform -chdir=infra init -backend=false
+        terraform -chdir=infra validate
 
-IP="$(terraform -chdir="${INFRA_DIR}" output -raw public_ip)"
-APP_URL="$(terraform -chdir="${INFRA_DIR}" output -raw app_url)"
-
-echo "Public IP: ${IP}"
-echo "App URL :  ${APP_URL}"
-
-echo "Waiting for SSH to become ready..."
-for i in {1..30}; do
-  if ssh -i "${SSH_KEY}" \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      -o ConnectTimeout=5 \
-      "${SSH_USER}@${IP}" "echo ssh-ok" >/dev/null 2>&1; then
-    echo "SSH is ready."
-    break
-  fi
-  sleep 5
-  if [[ "${i}" -eq 30 ]]; then
-    echo "ERROR: SSH not reachable after retries."
-    exit 1
-  fi
-done
-
-echo "Waiting for cloud-init and checking Docker + port 80..."
-ssh -i "${SSH_KEY}" \
-  -o StrictHostKeyChecking=no \
-  -o UserKnownHostsFile=/dev/null \
-  "${SSH_USER}@${IP}" \
-  'cloud-init status --wait || true; sudo docker ps || true; sudo ss -lntp | grep ":80 " || true; sudo tail -n 60 /var/log/cloud-init-output.log || true'
-
-echo "Curling the app (with retries)..."
-for i in {1..20}; do
-  if curl -fsS "${APP_URL}" >/dev/null 2>&1; then
-    echo "App is reachable:"
-    curl -fsS "${APP_URL}"
-    echo
-    exit 0
-  fi
-  sleep 5
-done
-
-echo "ERROR: App not reachable after retries."
-exit 1
+fmt:
+        terraform fmt -recursive
