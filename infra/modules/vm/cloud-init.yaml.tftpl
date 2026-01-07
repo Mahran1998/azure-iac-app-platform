@@ -1,0 +1,9 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+runcmd:
+  - systemctl enable --now docker
+  - docker pull ${app_image}
+  - docker rm -f app || true
+  - docker run -d --restart unless-stopped --name app -p 80:80 ${app_image}

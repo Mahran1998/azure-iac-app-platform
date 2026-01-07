@@ -1,0 +1,11 @@
+# Pick a region allowed by your subscription policy
+name_prefix      = "azure-iac"
+location         = "swedencentral"
+
+# Your public IP in CIDR for SSH access
+ssh_allowed_cidr = "YOUR_PUBLIC_IP/32"
+
+# IMPORTANT:
+# Some tenants only accept RSA keys. Generate one if needed:
+# ssh-keygen -t rsa -b 4096 -C "you@email" -f ~/.ssh/id_rsa_azure
+ssh_public_key   = "PASTE_YOUR_RSA_PUBLIC_KEY_LINE_HERE"
