@@ -22,17 +22,30 @@ VNet (10.10.0.0/16)
 - Azure CLI
 - Azure subscription access
 
+
 ## Quickstart
+
 ```bash
 cd infra
 cp terraform.tfvars.example terraform.tfvars
 
 # Edit terraform.tfvars:
-# - location must be an allowed region for your subscription (some tenants restrict regions)
+# - location must be allowed by your subscription policy
 # - ssh_allowed_cidr = YOUR_PUBLIC_IP/32
 # - ssh_public_key = your RSA public key line
 
 terraform init
-terraform plan
-terraform apply
+terraform apply -auto-approve
+
+IP="$(terraform output -raw public_ip)"
+
+# Wait for provisioning and confirm port 80
+ssh -i ~/.ssh/id_rsa_azure -o StrictHostKeyChecking=no azureuser@"$IP" \
+  'cloud-init status --wait; sudo docker ps; sudo ss -lntp | grep ":80 " || true'
+
+curl "http://$IP"
+
+# Clean up to stop costs
+terraform destroy -auto-approve
+
 
