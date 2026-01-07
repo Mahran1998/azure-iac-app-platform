@@ -12,3 +12,6 @@
 # CLI / OS
 .DS_Store
 *.swp
+
+# Local backups
+infra.bak.*/
