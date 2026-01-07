@@ -1,14 +1,16 @@
 SHELL := /bin/bash
+.RECIPEPREFIX := >
 
 .PHONY: demo validate fmt
 
 demo:
-	./scripts/demo.sh
+> ./scripts/demo.sh
 
 validate:
-	terraform fmt -check -recursive
-	terraform -chdir=infra init -backend=false
-	terraform -chdir=infra validate
+> terraform fmt -check -recursive
+> terraform -chdir=infra init -backend=false
+> terraform -chdir=infra validate
+> bash -n scripts/demo.sh
 
 fmt:
-	terraform fmt -recursive
+> terraform fmt -recursive

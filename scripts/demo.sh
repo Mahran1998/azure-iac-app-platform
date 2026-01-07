@@ -9,6 +9,19 @@ SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa_azure}"
 SSH_USER="${SSH_USER:-azureuser}"
 KEEP="${KEEP:-0}" # set KEEP=1 to skip destroy (not recommended)
 
+tf() { terraform -chdir="${INFRA_DIR}" "$@"; }
+
+destroy() {
+  if [[ "${KEEP}" == "1" ]]; then
+    echo "[KEEP=1] Skipping terraform destroy."
+    return 0
+  fi
+  echo "Destroying resources to minimize cost..."
+  tf destroy -auto-approve -var-file="${TFVARS_FILE}" >/dev/null 2>&1 || true
+}
+
+trap destroy EXIT
+
 if [[ ! -f "${TFVARS_FILE}" ]]; then
   echo "ERROR: ${TFVARS_FILE} not found."
   echo "Create it from infra/terraform.tfvars.example:"
@@ -23,25 +36,51 @@ if [[ ! -f "${SSH_KEY}" ]]; then
   exit 1
 fi
 
-destroy() {
-  if [[ "${KEEP}" == "1" ]]; then
-    echo "[KEEP=1] Skipping terraform destroy."
-    return 0
+echo "Terraform init..."
+tf init -upgrade >/dev/null
+
+echo "Terraform apply (temporary demo)..."
+tf apply -auto-approve -var-file="${TFVARS_FILE}"
+
+IP="$(tf output -raw public_ip)"
+APP_URL="$(tf output -raw app_url)"
+
+echo "Public IP: ${IP}"
+echo "App URL :  ${APP_URL}"
+
+echo "Waiting for SSH to become ready..."
+for i in {1..60}; do
+  if ssh -i "${SSH_KEY}" \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=5 \
+    "${SSH_USER}@${IP}" "echo ok" >/dev/null 2>&1; then
+    echo "SSH is ready."
+    break
   fi
-  echo "Destroying resources to minimize cost..."
-chmod +x scripts/demo.shchable after retries."henps || true; sudo ss -lntp | grep ":80 " || true; sudo tail -n 80 /var/log/cloud-init-ou
-mahran@Eng-Mahran:~/Projects/azure-iac-app-platform$ cat > Makefile <<'EOF'
-SHELL := /bin/bash
+  sleep 5
+  if [[ "$i" == "60" ]]; then
+    echo "ERROR: SSH not reachable after retries."
+    exit 1
+  fi
+done
 
-.PHONY: demo validate fmt
+echo "Waiting for cloud-init and checking Docker + port 80..."
+ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=accept-new "${SSH_USER}@${IP}" '
+  cloud-init status --wait || true
+  sudo docker ps || true
+  sudo ss -lntp | grep ":80 " || true
+  sudo tail -n 80 /var/log/cloud-init-output.log || true
+'
 
-demo:
-        ./scripts/demo.sh
+echo "Curling the app (with retries)..."
+for i in {1..30}; do
+  if curl -fsS "${APP_URL}" >/dev/null 2>&1; then
+    echo "App is reachable:"
+    curl -fsS "${APP_URL}"
+    exit 0
+  fi
+  sleep 2
+done
 
-validate:
-        terraform fmt -check -recursive
-        terraform -chdir=infra init -backend=false
-        terraform -chdir=infra validate
-
-fmt:
-        terraform fmt -recursive
+echo "ERROR: App not reachable after retries."
+exit 1
