@@ -1,3 +1,6 @@
+[![terraform-ci](https://github.com/Mahran1998/azure-iac-app-platform/actions/workflows/terraform-ci.yml/badge.svg)](https://github.com/Mahran1998/azure-iac-app-platform/actions/workflows/terraform-ci.yml)
+
+
 # Azure IaC App Platform (Terraform + Azure)
 
 A small, production-shaped Infrastructure-as-Code project that provisions a secure Azure baseline:
